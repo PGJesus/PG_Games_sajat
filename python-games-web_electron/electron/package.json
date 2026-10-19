@@ -1,0 +1,14 @@
+{
+  "name": "python-arcade",
+  "version": "1.0.0",
+  "description": "The Python Arcade games page in a desktop window",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "node node_modules/electron/install.js"
+  },
+  "devDependencies": {
+    "electron": "^44.0.0"
+  }
+}

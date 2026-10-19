@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python Arcade</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Python Arcade</h1>
+  <p>Three games written in Python, running right here in the browser.</p>
+</header>
+
+<main class="grid">
+  <!-- Row 1, left -->
+  <section class="card" data-game="tictactoe" data-kind="pygame">
+    <div class="card-head">
+      <h2>Tic-tac-toe</h2>
+      <span class="tag">pygame</span>
+    </div>
+    <p class="help">Two players, one mouse. Click a square; click again after the game ends.</p>
+    <div class="stage" style="--ratio: 360 / 410">
+      <div class="placeholder">
+        <button class="play" data-runtime="pyodide">▶ Play</button>
+        <button class="alt" data-runtime="pygbag">Play with pygbag (online)</button>
+      </div>
+    </div>
+    <div class="card-foot"><button class="stop" hidden>Stop</button></div>
+  </section>
+
+  <!-- Row 1, right -->
+  <section class="card" data-game="hangman" data-kind="console">
+    <div class="card-head">
+      <h2>Hangman</h2>
+      <span class="tag tag-console">console</span>
+    </div>
+    <p class="help">A plain print()/input() game. Type a letter and press Enter.</p>
+    <div class="stage" style="--ratio: 360 / 410">
+      <div class="placeholder">
+        <button class="play" data-runtime="console">▶ Play</button>
+      </div>
+    </div>
+    <div class="card-foot"><button class="stop" hidden>Stop</button></div>
+  </section>
+
+  <!-- Row 2, full width -->
+  <section class="card wide" data-game="snake" data-kind="pygame">
+    <div class="card-head">
+      <h2>Snake</h2>
+      <span class="tag">pygame</span>
+    </div>
+    <p class="help">Arrow keys or WASD to steer. Space restarts. Click the game first so it gets your keys.</p>
+    <div class="stage" style="--ratio: 720 / 400">
+      <div class="placeholder">
+        <button class="play" data-runtime="pyodide">▶ Play</button>
+        <button class="alt" data-runtime="pygbag">Play with pygbag (online)</button>
+      </div>
+    </div>
+    <div class="card-foot"><button class="stop" hidden>Stop</button></div>
+  </section>
+</main>
+
+<footer>Offline runtime: Pyodide 0.27.7 + pygame-ce 2.4.1 · first start of a game takes a few seconds</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

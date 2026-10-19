@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Console runner (Pyodide)</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0f1117; color: #d7f5dd; }
+  body { display: flex; flex-direction: column; font: 14px/1.35 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  #term { flex: 1; overflow-y: auto; padding: 12px 14px; cursor: text; }
+  #out { white-space: pre-wrap; word-break: break-word; }
+  #out .err { color: #ff8787; }
+  #out .echo { color: #ffd43b; }
+  #line { font: inherit; color: #ffd43b; background: transparent; border: 0; outline: none;
+          padding: 0; width: 12ch; caret-color: #ffd43b; }
+  #line:disabled { display: none; }
+  #bar { display: none; padding: 8px 14px; border-top: 1px solid #262a36; }
+  #bar button { font: 14px system-ui, sans-serif; padding: 6px 14px; border-radius: 6px; border: 0;
+                background: #4dabf7; color: #0f1117; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="term"><span id="out">Loading Python…
+</span><input id="line" autocomplete="off" spellcheck="false" disabled aria-label="Your input"></div>
+<div id="bar"><button id="restart">Restart game</button></div>
+
+<script>
+const GAMES = ["hangman"];
+const game = new URLSearchParams(location.search).get("game");
+const term = document.getElementById("term");
+const out = document.getElementById("out");
+const line = document.getElementById("line");
+const bar = document.getElementById("bar");
+
+function write(text, cls) {
+  if (cls) {
+    const span = document.createElement("span");
+    span.className = cls;
+    span.textContent = text;
+    out.append(span);
+  } else {
+    out.append(text);
+  }
+  term.scrollTop = term.scrollHeight;
+}
+
+let worker, ctrl, bytes;
+
+function start() {
+  out.textContent = "";
+  bar.style.display = "none";
+  if (!GAMES.includes(game)) return write("Unknown game: " + game + "\n", "err");
+  if (!self.crossOriginIsolated) {
+    return write("This page needs to be opened through serve.py (or the Electron app).\n" +
+                 "Plain 'python -m http.server' and double-clicking the file can't run input().\n", "err");
+  }
+  write("Loading Python…\n");
+
+  const sab = new SharedArrayBuffer(8 + 4096);
+  ctrl = new Int32Array(sab, 0, 2);
+  bytes = new Uint8Array(sab, 8);
+
+  worker = new Worker("console-worker.js");
+  worker.onmessage = ({ data }) => {
+    switch (data.type) {
+      case "ready": out.textContent = ""; break;
+      case "out":   write(data.text); break;
+      case "err":   write(data.text, "err"); break;
+      case "stdin":
+        line.disabled = false;
+        line.focus();
+        break;
+      case "exit":
+        line.disabled = true;
+        write("\n[program finished]\n");
+        bar.style.display = "block";
+        break;
+    }
+  };
+  worker.postMessage({ game, sab });
+}
+
+function send(text) {
+  const encoded = new TextEncoder().encode(text).slice(0, bytes.length);
+  bytes.set(encoded);
+  Atomics.store(ctrl, 1, encoded.length);
+  Atomics.store(ctrl, 0, 1);
+  Atomics.notify(ctrl, 0);       // wake the worker's input()
+}
+
+line.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const text = line.value;
+  line.value = "";
+  line.disabled = true;
+  write(text + "\n", "echo");    // show what was typed, like a real terminal
+  send(text);
+});
+
+term.addEventListener("click", () => { if (!line.disabled) line.focus(); });
+document.getElementById("restart").addEventListener("click", () => { worker?.terminate(); start(); });
+// Lets the outer page focus the input after "Play" is clicked.
+window.focusInput = () => { if (!line.disabled) line.focus(); };
+
+start();
+</script>
+</body>
+</html>

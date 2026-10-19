@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pygame runner (Pyodide)</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #181a21; color: #e6e6eb;
+               font: 15px system-ui, sans-serif; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  /* The card's frame has the same shape as the game window, so the canvas is
+     stretched to fill it exactly (SDL sets inline sizes, hence !important).
+     SDL scales mouse positions to match, so clicks still land correctly. */
+  canvas { display: none; width: 100% !important; height: 100% !important; outline: none; }
+  #status { padding: 16px; text-align: center; white-space: pre-wrap; }
+  #status.error { color: #ff8787; text-align: left; font: 13px ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<div id="status">Loading Python…</div>
+<canvas id="canvas" tabindex="0"></canvas>
+
+<script src="../pyodide/pyodide.js"></script>
+<script>
+// Which game to run comes from ?game=..., checked against a fixed list so the
+// page can only ever run our own files.
+const GAMES = ["tictactoe", "snake"];
+const game = new URLSearchParams(location.search).get("game");
+const statusEl = document.getElementById("status");
+const canvas = document.getElementById("canvas");
+
+function showError(text) {
+  statusEl.className = "error";
+  statusEl.textContent = text;
+  statusEl.style.display = "";
+  canvas.style.display = "none";
+}
+// Called from Python when the game loop crashes.
+window.reportPythonError = showError;
+
+// Stop arrow keys / space from scrolling anything while playing.
+window.addEventListener("keydown", e => {
+  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
+});
+canvas.addEventListener("pointerdown", () => canvas.focus());
+
+async function start() {
+  if (!GAMES.includes(game)) return showError("Unknown game: " + game);
+
+  statusEl.textContent = "Loading Python…";
+  const pyodide = await loadPyodide({ indexURL: "../pyodide/" });   // local files, no internet
+
+  pyodide.canvas.setCanvas2D(canvas);       // pygame draws here
+  statusEl.textContent = "Loading pygame…";
+  await pyodide.loadPackage("pygame-ce");    // from ../pyodide/, offline
+
+  const code = await (await fetch(`../games/${game}/main.py`)).text();
+
+  // The games end with asyncio.run(main()) so they also run on the desktop.
+  // In the browser the loop must run on the page's own event loop instead,
+  // so asyncio.run is swapped for "start it in the background".
+  pyodide.runPython(`
+import asyncio, traceback, js
+
+def _run_in_browser(coro, **kwargs):
+    task = asyncio.ensure_future(coro)
+    def _done(t):
+        if not t.cancelled() and t.exception() is not None:
+            js.reportPythonError("".join(traceback.format_exception(t.exception())))
+    task.add_done_callback(_done)
+    return task
+
+asyncio.run = _run_in_browser
+`);
+
+  statusEl.style.display = "none";
+  canvas.style.display = "block";
+  canvas.focus();
+  await pyodide.runPythonAsync(code);
+}
+
+start().catch(err => showError(String(err)));
+</script>
+</body>
+</html>
